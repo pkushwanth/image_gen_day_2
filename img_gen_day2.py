@@ -1,7 +1,3 @@
-# -------------------------------------------------
-# 1. Install Required Libraries
-# -------------------------------------------------
-!pip install -q diffusers transformers accelerate torch
 
 # -------------------------------------------------
 # 2. Import Modules
