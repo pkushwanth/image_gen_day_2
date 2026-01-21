@@ -6,7 +6,5 @@ torch
 StableDiffusionPipeline
 Image
 display
-google-auth
-google-auth-oauthlib
-google-api-python-client
-PIL
+safetensors
+Pillow
