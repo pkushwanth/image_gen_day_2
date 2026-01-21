@@ -1,10 +1,7 @@
-streamlit 
+streamlit
+torch
 diffusers
 transformers
 accelerate
-torch
-StableDiffusionPipeline
-Image
-display
 safetensors
 Pillow
