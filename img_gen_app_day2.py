@@ -1,63 +1,59 @@
-import streamlit as st
-import torch
-from diffusers import StableDiffusionPipeline
+import os
+import gradio as gr
+from huggingface_hub import InferenceClient
 from PIL import Image
 
 # -------------------------------------------------
-# Page Config
+# Load API Token (from Secrets)
 # -------------------------------------------------
-st.set_page_config(
-    page_title="Stable Diffusion Image Generator",
-    layout="centered"
+HF_TOKEN = os.getenv("HF_TOKEN")
+
+if HF_TOKEN is None:
+    raise RuntimeError("HF_TOKEN not found. Add it in Secrets.")
+
+client = InferenceClient(
+    token=HF_TOKEN,
+    model="runwayml/stable-diffusion-v1-5"
 )
 
-st.title("🎨 Stable Diffusion Image Generator")
-st.write("Generate AI images from text prompts")
+# -------------------------------------------------
+# Image Generation Function
+# -------------------------------------------------
+def generate_image(prompt, negative_prompt):
+    if prompt.strip() == "":
+        return None
 
-# -------------------------------------------------
-# Load Model (Cached)
-# -------------------------------------------------
-@st.cache_resource
-def load_model():
-    model_id = "runwayml/stable-diffusion-v1-5"
-    pipe = StableDiffusionPipeline.from_pretrained(
-        model_id,
-        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
+    image = client.text_to_image(
+        prompt=prompt,
+        negative_prompt=negative_prompt
     )
 
-    if torch.cuda.is_available():
-        pipe = pipe.to("cuda")
-
-    return pipe
-
-with st.spinner("Loading model... Please wait ⏳"):
-    pipe = load_model()
-
-st.success("Model loaded successfully!")
+    return image
 
 # -------------------------------------------------
-# User Input UI
+# Gradio UI
 # -------------------------------------------------
-prompt = st.text_area(
-    "Enter your prompt",
-    placeholder="A futuristic sports car in an empty basement, cinematic lighting"
-)
+with gr.Blocks() as app:
+    gr.Markdown("## 🎨 Stable Diffusion Image Generator")
 
-generate = st.button("Generate Image")
+    prompt = gr.Textbox(
+        label="Prompt",
+        placeholder="A futuristic sports car in an empty basement, cinematic lighting"
+    )
 
-# -------------------------------------------------
-# Generate Image
-# -------------------------------------------------
-if generate:
-    if prompt.strip() == "":
-        st.warning("Please enter a prompt.")
-    else:
-        with st.spinner("Generating image... 🎨"):
-            image = pipe(prompt).images[0]
+    negative_prompt = gr.Textbox(
+        label="Negative Prompt",
+        placeholder="blurry, low quality, distorted"
+    )
 
-        st.image(image, caption="Generated Image", use_container_width=True)
+    generate_btn = gr.Button("Generate Image 🚀")
 
-        # Save image
-        image.save("generated_image.png")
+    output = gr.Image(label="Generated Image")
 
-        st.success("Image generated successfully!")
+    generate_btn.click(
+        fn=generate_image,
+        inputs=[prompt, negative_prompt],
+        outputs=output
+    )
+
+app.launch()
