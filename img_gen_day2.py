@@ -1,60 +1,63 @@
-
-# -------------------------------------------------
-# 2. Import Modules
-# -------------------------------------------------
+import streamlit as st
 import torch
 from diffusers import StableDiffusionPipeline
 from PIL import Image
-from IPython.display import display
 
 # -------------------------------------------------
-# 3. Load the Model
+# Page Config
 # -------------------------------------------------
-model_id = "runwayml/stable-diffusion-v1-5"
+st.set_page_config(
+    page_title="Stable Diffusion Image Generator",
+    layout="centered"
+)
 
-print("Loading model... this may take a minute.")
+st.title("🎨 Stable Diffusion Image Generator")
+st.write("Generate AI images from text prompts")
 
-try:
+# -------------------------------------------------
+# Load Model (Cached)
+# -------------------------------------------------
+@st.cache_resource
+def load_model():
+    model_id = "runwayml/stable-diffusion-v1-5"
     pipe = StableDiffusionPipeline.from_pretrained(
         model_id,
-        torch_dtype=torch.float16
+        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
     )
-    pipe = pipe.to("cuda")
-    print("✅ Model loaded successfully and moved to GPU.")
 
-except Exception as e:
-    print(f"❌ Error loading model: {e}")
-    print("Ensure Runtime is set to GPU")
+    if torch.cuda.is_available():
+        pipe = pipe.to("cuda")
 
-# -------------------------------------------------
-# 4. Generate Image Function
-# -------------------------------------------------
-def generate_image(prompt):
-    print(f"\n🎨 Generating image for:\n\"{prompt}\"")
-    image = pipe(prompt).images[0]
-    return image
+    return pipe
+
+with st.spinner("Loading model... Please wait ⏳"):
+    pipe = load_model()
+
+st.success("Model loaded successfully!")
 
 # -------------------------------------------------
-# 5. UI: Take Prompt from User
+# User Input UI
 # -------------------------------------------------
-while True:
-    user_prompt = input("\nEnter your image prompt (or type 'exit' to quit):\n> ")
+prompt = st.text_area(
+    "Enter your prompt",
+    placeholder="A futuristic sports car in an empty basement, cinematic lighting"
+)
 
-    if user_prompt.lower() == "exit":
-        print("👋 Exiting image generation.")
-        break
+generate = st.button("Generate Image")
 
-    try:
-        generated_image = generate_image(user_prompt)
+# -------------------------------------------------
+# Generate Image
+# -------------------------------------------------
+if generate:
+    if prompt.strip() == "":
+        st.warning("Please enter a prompt.")
+    else:
+        with st.spinner("Generating image... 🎨"):
+            image = pipe(prompt).images[0]
 
-        # Display image in notebook
-        display(generated_image)
+        st.image(image, caption="Generated Image", use_container_width=True)
 
-        # Save image with unique name
-        file_name = f"generated_image_{abs(hash(user_prompt)) % 10000}.png"
-        generated_image.save(file_name)
+        # Save image
+        image.save("generated_image.png")
 
-        print(f"✅ Image saved as '{file_name}'")
-
-    except Exception as e:
-        print(f"❌ Error during generation: {e}")
+        st.success("Image generated successfully!")
